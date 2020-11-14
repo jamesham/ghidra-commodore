@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<system_roms system_type="C64" source="C64 Hardware">
+<rom name="KERNAL" description="C64 Kernal ROM" addressStart="0xe000" length="0x2000" romFile="kernal.901227-03.bin" source="C64 Hardware">
+<symbol name="ACPTR" address="0xFFA5" description="Input byte from serial port"/>
+<symbol name="CHKIN" address="0xFFC6" description="Open channel for input"/>
+<symbol name="CHKOUT" address="0xFFC9" description="Open a channel for output"/>
+<symbol name="CHRIN" address="0xFFCF" description="Get a character from the input channel"/>
+<symbol name="CHROUT" address="0xFFD2" description="Output a character"/>
+<symbol name="CIOUT" address="0xFFA8" description="Transmit a byte over the serial bus"/>
+<symbol name="CINT" address="0xFF81" description="Initialize the screen editor and VIC-II Chip"/>
+<symbol name="CLALL" address="0xFFE7" description="Close all open files"/>
+<symbol name="CLOSE" address="0xFFC3" description="Close a logical file"/>
+<symbol name="CLRCHN" address="0xFFCC" description="Clear all I/O channels"/>
+<symbol name="GETIN" address="0xFFE4" description="Get a character"/>
+<symbol name="IOBASE" address="0xFFF3" description="Define I/O memory page"/>
+<symbol name="IOINIT" address="0xFF84" description="Initialize I/O devices"/>
+<symbol name="LISTEN" address="0xFFB1" description="Command a device on the serial bus to listen"/>
+<symbol name="LOAD" address="0xFFD5" description="Load RAM from device"/>
+<symbol name="MEMBOT" address="0xFF9C" description="Set bottom of memory"/>
+<symbol name="MEMTOP" address="0xFF99" description="Set the top of RAM"/>
+<symbol name="OPEN" address="0xFFC0" description="Open a logical file"/>
+<symbol name="PLOT" address="0xFFF0" description="Set or retrieve cursor location"/>
+<symbol name="RAMTAS" address="0xFF87" description="Perform RAM test"/>
+<symbol name="RDTIM" address="0xFFDE" description="Read system clock"/>
+<symbol name="READST" address="0xFFB7" description="Read status word"/>
+<symbol name="RESTOR" address="0xFF8A" description="Set the top of RAM"/>
+<symbol name="SAVE" address="0xFFD8" description="Save memory to a device"/>
+<symbol name="SCNKEY" address="0xFF9F" description="Scan the keyboard"/>
+<symbol name="SCREEN" address="0xFFED" description="Return screen format"/>
+<symbol name="SECOND" address="0xFF93" description="Send secondary address for LISTEN"/>
+<symbol name="SETLFS" address="0xFFBA" description="Set up a logical file"/>
+<symbol name="SETMSG" address="0xFF90" description="Set system message output"/>
+<symbol name="SETNAM" address="0xFFBD" description="Set up file name"/>
+<symbol name="SETTIM" address="0xFFDB" description="Set the system clock"/>
+<symbol name="SETTMO" address="0xFFA2" description="Set IEEE bus card timeout flag"/>
+<symbol name="STOP" address="0xFFE1" description="Check if STOP key is pressed"/>
+<symbol name="TALK" address="0xFFB4" description="Command a device on the serial bus to talk"/>
+<symbol name="TKSA" address="0xFF96" description="Send a secondary address to a device commanded to talk"/>
+<symbol name="UDTIM" address="0xFFEA" description="Update the system clock"/>
+<symbol name="UNLSN" address="0xFFAE" description="Send an UNLISTEN command"/>
+<symbol name="UNTLK" address="0xFFAB" description="Send an UNTALK command"/>
+<symbol name="VECTOR" address="0xFF8D" description="Manage RAM vectors "/>
+</rom>
+<rom name="BASIC" description="C64 BASIC ROM" addressStart="0xa000" length="0x2000" romFile="basic.901226-01.bin" source="C64 Hardware">
+<symbol address="0xA642" name="NEW"/>
+<symbol address="0xA65E" name="CLR"/>
+<symbol address="0xA69C" name="LIST"/>
+<symbol address="0xA742" name="FOR"/>
+<symbol address="0xA81D" name="RESTORE"/>
+<symbol address="0xA82F" name="STOP"/>
+<symbol address="0xA831" name="END"/>
+<symbol address="0xA857" name="CONT"/>
+<symbol address="0xA871" name="RUN"/>
+<symbol address="0xA883" name="GOSUB"/>
+<symbol address="0xA8A0" name="GOTO"/>
+<symbol address="0xA8D2" name="RETURN"/>
+<symbol address="0xA8F8" name="DATA"/>
+<symbol address="0xA928" name="IF"/>
+<symbol address="0xA93B" name="REM"/>
+<symbol address="0xA94B" name="ON"/>
+<symbol address="0xA9A5" name="LET"/>
+<symbol address="0xAA80" name="PRINT#"/>
+<symbol address="0xAA86" name="CMD"/>
+<symbol address="0xAAA0" name="PRINT"/>
+<symbol address="0xAB7B" name="GET"/>
+<symbol address="0xABA5" name="INPUT#"/>
+<symbol address="0xABBF" name="INPUT"/>
+<symbol address="0xAD1D" name="NEXT"/>
+<symbol address="0xB081" name="DIM"/>
+<symbol address="0xB37D" name="FRE"/>
+<symbol address="0xB39E" name="POS"/>
+<symbol address="0xB3B3" name="DEF"/>
+<symbol address="0xB3F4" name="FN"/>
+<symbol address="0xB465" name="STR$"/>
+<symbol address="0xB6EC" name="CHR$"/>
+<symbol address="0xB700" name="LEFT$"/>
+<symbol address="0xB72C" name="RIGHT$"/>
+<symbol address="0xB737" name="MID$"/>
+<symbol address="0xB77C" name="LEN"/>
+<symbol address="0xB78B" name="ASC"/>
+<symbol address="0xB7AD" name="VAL"/>
+<symbol address="0xB80D" name="PEEK"/>
+<symbol address="0xB824" name="POKE"/>
+<symbol address="0xB82D" name="WAIT"/>
+<symbol address="0xB9EA" name="LOG"/>
+<symbol address="0xBC39" name="SGN"/>
+<symbol address="0xBC58" name="ABS"/>
+<symbol address="0xBCCC" name="INT"/>
+<symbol address="0xBF71" name="SQR"/>
+<symbol address="0xBFED" name="EXP"/>
+</rom>
+<rom name="CHAR" description="C64 Character ROM" addressStart="0xd000" length="0x1000" romFile="characters.901225-01.bin" source="C64 Hardware">
+</rom>
+</system_roms>
