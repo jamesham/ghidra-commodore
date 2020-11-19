@@ -102,7 +102,7 @@ public class CommodoreCartridgeLoader extends AbstractLibrarySupportLoader {
 			
 			GenericFactory factory = MessageLogContinuesFactory.create(log);
 			CommodoreCartridgeHeader cart = CommodoreCartridgeHeader.createCommodoreCartridgeHeader(factory, provider);
-			cart.parse();
+			cart.parse(program, monitor, log);
 			
 			addCartridgeProperties(program, cart, monitor);
 			
@@ -145,7 +145,7 @@ public class CommodoreCartridgeLoader extends AbstractLibrarySupportLoader {
 		MemoryBlock ioMemoryBlock = MemoryBlockUtils.createUninitializedBlock(program, true, "I_O", ioAddress, 0x1000, "C64 I/O Registers", "C64 Hardware", true, true, false, log);
 		ioMemoryBlock.setVolatile(true);
 
-		log.appendMsg(String.format("Name: %s\nPointerSize: %d\nSize: %d\nMinAddr: %s\nMaxAddr: %s\nType: %d\n", as.getName(), as.getPointerSize(), as.getSize(), as.getMinAddress(), as.getMaxAddress(), as.getType()));
+		//log.appendMsg(String.format("Name: %s\nPointerSize: %d\nSize: %d\nMinAddr: %s\nMaxAddr: %s\nType: %d\n", as.getName(), as.getPointerSize(), as.getSize(), as.getMinAddress(), as.getMaxAddress(), as.getType()));
 
 		List<ResourceFile> allRomspecFiles = Application.findFilesByExtensionInMyModule(".romspec");
 		for (ResourceFile romspecFile : allRomspecFiles) {
@@ -165,7 +165,7 @@ public class CommodoreCartridgeLoader extends AbstractLibrarySupportLoader {
 			String name = ele.getName();
 			String type = ele.getAttribute("system_type");
 			String source = ele.getAttribute("source");
-			log.appendMsg(String.format("Root: %s (%s)", name, type));
+			//log.appendMsg(String.format("Root: %s (%s)", name, type));
 			Iterator<XmlTreeNode> it = romTree.getChildren("rom");
 			while (it.hasNext()) {
 				if (monitor.isCancelled()) {
@@ -193,9 +193,9 @@ public class CommodoreCartridgeLoader extends AbstractLibrarySupportLoader {
 		String romPath = romElement.getAttribute("romFile");
 		String romDesc = romElement.getAttribute("description");
 		String romSource = romElement.getAttribute("source");
-		int romStart = XmlUtilities.parseInt(romElement.getAttribute("addressStart"));
-		int romLength = XmlUtilities.parseInt(romElement.getAttribute("length"));
-		log.appendMsg(String.format("ROM: %s (%s) at %x (%x)", romName, romPath, romStart, romLength));
+		long romStart = XmlUtilities.parseInt(romElement.getAttribute("addressStart"));
+		long romLength = XmlUtilities.parseInt(romElement.getAttribute("length"));
+		log.appendMsg(String.format("ROM: %s (%s) at 0x%04x (0x%04x)", romName, romPath, romStart, romLength));
 		
 		ProgramAddressFactory af = (ProgramAddressFactory) program.getAddressFactory();
 		AddressSpace as = af.getDefaultAddressSpace();
@@ -228,7 +228,7 @@ public class CommodoreCartridgeLoader extends AbstractLibrarySupportLoader {
 				continue;
 			}
 			String symbolName = symbol.getAttribute("name");
-			int symbolAddr = XmlUtilities.parseInt(symbol.getAttribute("address"));
+			long symbolAddr = XmlUtilities.parseInt(symbol.getAttribute("address"));
 			Address symbolAddress = romAddressSpace.getAddress(symbolAddr);
 			try {
 				symbolTable.createLabel(symbolAddress, symbolName, romNamespace, SourceType.IMPORTED);
@@ -239,8 +239,81 @@ public class CommodoreCartridgeLoader extends AbstractLibrarySupportLoader {
 		}
 	}
 	
-	private void addCartridgeChips(Program program, CommodoreCartridgeHeader cart, MessageLog log, TaskMonitor monitor) {
+	private void addCartridgeChips(Program program, CommodoreCartridgeHeader cart, MessageLog log, TaskMonitor monitor) throws CancelledException {
+		if (monitor.isCancelled()) {
+			throw new CancelledException();
+		}
+		ProgramAddressFactory af = (ProgramAddressFactory) program.getAddressFactory();
+		AddressSpace as = af.getDefaultAddressSpace();
+		SymbolTable symbolTable = program.getSymbolTable();
 		
+		
+		
+		CommodoreChipHeader[] chips = cart.getChips();
+		for (CommodoreChipHeader chip : chips) {
+			if (monitor.isCancelled()) {
+				throw new CancelledException();
+			}
+			
+			long chipStart = chip.getChip_load_addr();
+			String chipName = String.format("%s_%d", chip.chipTypeName(), chip.getChip_bank());
+			String chipComment = String.format("Cart %s Chip %s", cart.getCart_name(), chipName);
+			Address chipStartAddress = as.getAddress(chipStart);
+			boolean r = chip.isReadable();
+			boolean w = chip.isWritable();
+			boolean x = chip.isExecutable();
+			FileBytes chipBytes = chip.getChip_filebytes();
+			long chipSize = chip.getChip_image_size();
+			String chipSource = chip.get_chip_source();
+			boolean isEntry = chip.isEntry();
+			long bootAddress = chip.bootAddress();
+			long resetAddress = chip.resetAddress();
+			
+			try {
+				MemoryBlock chipMemoryBlock;
+				String entryFlag = "";
+				
+				if (chip.isDefined()) {
+					chipMemoryBlock = MemoryBlockUtils.createInitializedBlock(program, true, chipName, chipStartAddress, chipBytes, 0, chipSize, chipComment, chipSource, r, w, x, log);					
+					
+					if (isEntry) {
+						entryFlag = String.format(" BOOT = 0x%04x", bootAddress);
+						AddressSpace chipAddressSpace = af.getAddressSpace(chipName);
+						log.appendMsg(String.format("Chip AS = %s (default: %s)", chipAddressSpace.getName(), as.getName()));
+						Namespace chipNamespace = symbolTable.getNamespace(chipAddressSpace.getAddress(chipStart));
+						Address bootSymbolAddress = chipAddressSpace.getAddress(bootAddress);
+						Address resetSymbolAddress = chipAddressSpace.getAddress(resetAddress);
+						log.appendMsg(String.format("BOOT: %s\tRESET: %s", bootSymbolAddress, resetSymbolAddress));
+						String bootSymbolName = String.format("%s_BOOT", chipName);
+						String resetSymbolName = String.format("%s_RESET", chipName);
+						try {
+							symbolTable.createLabel(bootSymbolAddress, bootSymbolName, chipNamespace, SourceType.IMPORTED);
+							symbolTable.addExternalEntryPoint(bootSymbolAddress);
+							
+						} catch (InvalidInputException e) {
+							log.appendMsg(String.format("Error creating symbol \"%s\": %s", bootSymbolName, e.getMessage()));
+						}
+						try {
+							symbolTable.createLabel(resetSymbolAddress, resetSymbolName, chipNamespace, SourceType.IMPORTED);
+							symbolTable.addExternalEntryPoint(resetSymbolAddress);
+						} catch (InvalidInputException e) {
+							log.appendMsg(String.format("Error creating symbol \"%s\": %s", resetSymbolName, e.getMessage()));
+						}
+						
+						
+					}
+					
+				} else {
+					chipMemoryBlock = MemoryBlockUtils.createUninitializedBlock(program, true, chipName, chipStartAddress, chipSize, chipComment, chipSource, r, w, x, log);					
+				}
+				log.appendMsg(String.format("CHIP: %s (%s) at 0x%04x (0x%04x)%s", chipName, chipSource, chipStart, chipSize, entryFlag));
+				chipMemoryBlock.setSourceName(chipSource);
+				
+			} catch (AddressOverflowException e) {
+				log.appendMsg(e.getMessage());				
+			}
+			
+		}
 	}
 
 	@Override

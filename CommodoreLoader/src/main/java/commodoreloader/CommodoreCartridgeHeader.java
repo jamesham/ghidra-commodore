@@ -9,12 +9,16 @@ import generic.continues.GenericFactory;
 import ghidra.app.util.bin.ByteProvider;
 import ghidra.app.util.bin.StructConverter;
 import ghidra.app.util.bin.format.FactoryBundledWithBinaryReader;
+import ghidra.app.util.importer.MessageLog;
 import ghidra.program.model.data.ArrayDataType;
 import ghidra.program.model.data.CategoryPath;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.Structure;
 import ghidra.program.model.data.StructureDataType;
+import ghidra.program.model.listing.Program;
+import ghidra.util.exception.CancelledException;
 import ghidra.util.exception.DuplicateNameException;
+import ghidra.util.task.TaskMonitor;
 
 public class CommodoreCartridgeHeader implements StructConverter {
 	
@@ -54,6 +58,8 @@ public class CommodoreCartridgeHeader implements StructConverter {
 	
 	protected void initCommodoreCartridgeHeader(GenericFactory factory, ByteProvider provider) 
 			throws CommodoreException {
+		
+		this.parsed = false;
 		
 		try {
 			reader = new FactoryBundledWithBinaryReader(factory, provider, false);
@@ -103,7 +109,7 @@ public class CommodoreCartridgeHeader implements StructConverter {
 		}
 	}
 	
-	public void parse() throws IOException {
+	public void parse(Program program, TaskMonitor monitor, MessageLog log) throws IOException, CommodoreException, CancelledException {
 		if (reader == null) {
 			throw new IOException("Commodore Cartridge binary reader is null!");
 		}
@@ -111,11 +117,11 @@ public class CommodoreCartridgeHeader implements StructConverter {
 			return;
 		}
 		
-		parseChips();
+		parseChips(program, monitor, log);
 		parsed = true;
 	}
 	
-	protected void parseChips() throws IOException {
+	protected void parseChips(Program program, TaskMonitor monitor, MessageLog log) throws IOException, CommodoreException, CancelledException {
 		if (reader == null) {
 			throw new IOException("Commodore Cartridge binary reader is null!");
 		}
@@ -126,7 +132,11 @@ public class CommodoreCartridgeHeader implements StructConverter {
 		ArrayList<CommodoreChipHeader> chipHeaderList = new ArrayList<>();
 		
 		while (reader.getPointerIndex() < reader.length()) {
-			CommodoreChipHeader chip = CommodoreChipHeader.createCommodoreChipHeader(reader, this);
+			if (monitor.isCancelled()) {
+				throw new CancelledException();
+			}
+			CommodoreChipHeader chip = CommodoreChipHeader.createCommodoreChipHeader(reader, this, log);
+			chip.parse(program, monitor, log);
 			chipHeaderList.add(chip);
 		}
 		
@@ -197,6 +207,10 @@ public class CommodoreCartridgeHeader implements StructConverter {
 	
 	public int getCart_chip_count() {
 		return chipCount;
+	}
+	
+	public CommodoreChipHeader[] getChips() {
+		return chipHeaders;
 	}
 
 }

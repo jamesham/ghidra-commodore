@@ -40,6 +40,9 @@
 <symbol name="UNLSN" address="0xFFAE" description="Send an UNLISTEN command"/>
 <symbol name="UNTLK" address="0xFFAB" description="Send an UNTALK command"/>
 <symbol name="VECTOR" address="0xFF8D" description="Manage RAM vectors "/>
+<pointer name="NMI" address="0xFFFA" description="NMI Vector"/>
+<pointer name="RESET" address="0xFFFC" description="RESET Vector"/>
+<pointer name="IRQ" address="0xFFFE" description="IRQ Vector"/>
 </rom>
 <rom name="BASIC" description="C64 BASIC ROM" addressStart="0xa000" length="0x2000" romFile="basic.901226-01.bin" source="C64 Hardware">
 <symbol address="0xA642" name="NEW"/>
