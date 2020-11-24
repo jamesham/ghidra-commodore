@@ -22,8 +22,8 @@ import ghidra.util.task.TaskMonitor;
 
 public class CommodoreCartridgeHeader implements StructConverter {
 	
-	private static String name = "CommodoreCart_Hdr";
-	private static final String CART_MAGIC = "C64 CARTRIDGE   ";
+	private static String name = "CommodoreCart_Hdr"; //$NON-NLS-1$
+	private static final String CART_MAGIC = "C64 CARTRIDGE   "; //$NON-NLS-1$
 	private static final short CART_VERSION_0100 = 0x0100;
 	
 	private static final int CART_MAGIC_LEN = 16;
@@ -101,7 +101,7 @@ public class CommodoreCartridgeHeader implements StructConverter {
 			if (cart_header_len == 0x40) {
 				cart_name = reader.readNextAsciiString(CART_NAME_LEN);
 			} else {
-				cart_name = StringUtils.repeat(" ", CART_NAME_LEN);
+				cart_name = StringUtils.repeat(" ", CART_NAME_LEN); //$NON-NLS-1$
 			}
 		
 		} catch (IOException e) {
@@ -115,6 +115,10 @@ public class CommodoreCartridgeHeader implements StructConverter {
 		}
 		if (parsed) {
 			return;
+		}
+		
+		if (cart_game_status == 1 && cart_exrom_status == 1) {
+			log.appendMsg("WARN: GAME and EXROM lines both set to 1; Cart will not map in!");
 		}
 		
 		parseChips(program, monitor, log);
@@ -153,20 +157,20 @@ public class CommodoreCartridgeHeader implements StructConverter {
 		}
 		
 		headerStructure = new StructureDataType(new CategoryPath("/Commodore"), name, 0);
-		headerStructure.add(STRING, cart_magic_str.length(), "cart_magic_str", null);
-		headerStructure.add(DWORD, "cart_header_len", null);
-		headerStructure.add(WORD, "cart_version", null);
-		headerStructure.add(WORD, "cart_hardware_type", null);
-		headerStructure.add(BYTE, "cart_exrom_status", null);
-		headerStructure.add(BYTE, "cart_game_status", null);
-		headerStructure.add(new ArrayDataType(BYTE,CART_RESERVED_LEN,1), "cart_reserved", null);
-		headerStructure.add(STRING, cart_name.length(), "cart_name", null);		
+		headerStructure.add(STRING, cart_magic_str.length(), "cart_magic_str", null); //$NON-NLS-1$
+		headerStructure.add(DWORD, "cart_header_len", null); //$NON-NLS-1$
+		headerStructure.add(WORD, "cart_version", null); //$NON-NLS-1$
+		headerStructure.add(WORD, "cart_hardware_type", null); //$NON-NLS-1$
+		headerStructure.add(BYTE, "cart_exrom_status", null); //$NON-NLS-1$
+		headerStructure.add(BYTE, "cart_game_status", null); //$NON-NLS-1$
+		headerStructure.add(new ArrayDataType(BYTE,CART_RESERVED_LEN,1), "cart_reserved", null); //$NON-NLS-1$
+		headerStructure.add(STRING, cart_name.length(), "cart_name", null); //$NON-NLS-1$
 		
 		return headerStructure;
 	}
 	
 	public String getCart_version_str() {
-		return String.format("%02d.%02d", cart_version >> 8, cart_version & 0xff);
+		return String.format("%02d.%02d", cart_version >> 8, cart_version & 0xff); //$NON-NLS-1$
 	}
 	
 	public String getCart_hardware_type_string() {
@@ -211,6 +215,10 @@ public class CommodoreCartridgeHeader implements StructConverter {
 	
 	public CommodoreChipHeader[] getChips() {
 		return chipHeaders;
+	}
+	
+	public boolean isUltimax() {
+		return (cart_game_status == 0 && cart_exrom_status == 1);
 	}
 
 }
