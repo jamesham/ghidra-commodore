@@ -1,7 +1,6 @@
 package commodoreloader;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Arrays;
 
 import ghidra.app.util.MemoryBlockUtils;
@@ -23,9 +22,10 @@ import ghidra.util.task.TaskMonitor;
 
 public class CommodoreChipHeader implements StructConverter, MemoryLoadable {
 	
-	private static String name = "CommodoreChip_Hdr"; //$NON-NLS-1$
+	public static final String HEADER_NAME = "CommodoreChip_Hdr"; //$NON-NLS-1$
 	private static final String CHIP_MAGIC = "CHIP"; //$NON-NLS-1$
 	private static final byte[] CHIP_BOOT_MARKER = { (byte) 0xc3, (byte) 0xc2, (byte) 0xcd, 0x38, 0x30 };
+	private static final long CHIP_HEADER_LENGTH = 0x10;
 	
 	private static final int CHIP_MAGIC_LEN = 4;
 	private static final short CHIP_TYPE_ROM = 0;
@@ -33,15 +33,17 @@ public class CommodoreChipHeader implements StructConverter, MemoryLoadable {
 	private static final short CHIP_TYPE_EEPROM = 2;
 	
 	private String chip_magic_str;
-	private long chip_length;
+	private int chip_length;
 	private int chip_type;
 	private int chip_bank;
 	private long chip_load_addr;
-	private long chip_image_size;
+	private int chip_image_size;
 	//private byte[] chip_data;
 	private long chip_data_offset;
 	private long chip_file_offset;
 	private FileBytes chip_file_bytes;
+	private FileBytes chip_header_bytes;
+	private int chip_header_length;
 	private String chip_source;
 	
 	private Structure headerStructure;
@@ -51,7 +53,7 @@ public class CommodoreChipHeader implements StructConverter, MemoryLoadable {
 	private boolean parsed = false;
 	private boolean chipContainsBootMarker = false;
 	private long chipBootAddress = -1;
-	private long chipResetAddress = -1;
+	private long chipNmiAddress = -1;
 	
 	public static CommodoreChipHeader createCommodoreChipHeader(FactoryBundledWithBinaryReader reader, CommodoreCartridgeHeader cart, MessageLog log)
 			throws IOException, CommodoreException {
@@ -86,11 +88,18 @@ public class CommodoreChipHeader implements StructConverter, MemoryLoadable {
 		chip_image_size = reader.readNextShort() & 0xffff;
 		chip_data_offset = reader.getPointerIndex();
 		
+		chip_header_length = chip_length - chip_image_size;
+		
+		if (chip_header_length != CHIP_HEADER_LENGTH) {
+			log.appendMsg(String.format("WARN: Chip Header calculated to be %02x bytes (expected %02x)",
+					chip_header_length, CHIP_HEADER_LENGTH));
+		}
+		
 		try {
 			if (chip_type != CHIP_TYPE_RAM && chip_image_size >= 9) {
 				reader.setLittleEndian(true);
 				chipBootAddress = reader.readNextShort() & 0xffff;
-				chipResetAddress = reader.readNextShort() & 0xffff;
+				chipNmiAddress = reader.readNextShort() & 0xffff;
 				byte[] chipBootMarker = reader.readNextByteArray(5);				
 				chipContainsBootMarker = Arrays.equals(chipBootMarker,CHIP_BOOT_MARKER);
 			}
@@ -99,7 +108,7 @@ public class CommodoreChipHeader implements StructConverter, MemoryLoadable {
 		}
 		
 		if (!chipContainsBootMarker) {
-			chipBootAddress = chipResetAddress = -1;
+			chipBootAddress = chipNmiAddress = -1;
 		}
 		
 		reader.setPointerIndex(chip_file_offset + chip_length);		
@@ -116,10 +125,10 @@ public class CommodoreChipHeader implements StructConverter, MemoryLoadable {
 		ByteProvider byteProvider = reader.getByteProvider();
 		chip_source = byteProvider.getName();
 		
-		if (chip_type == CHIP_TYPE_ROM || chip_type == CHIP_TYPE_EEPROM) {
-			try (InputStream fileIn = byteProvider.getInputStream(0)) {
-				chip_file_bytes = MemoryBlockUtils.createFileBytes(program, byteProvider, chip_data_offset, chip_length, monitor); 
-			}
+		chip_header_bytes = MemoryBlockUtils.createFileBytes(program, byteProvider, chip_file_offset, chip_header_length, monitor);
+		
+		if (chip_type == CHIP_TYPE_ROM || chip_type == CHIP_TYPE_EEPROM) {			
+			chip_file_bytes = MemoryBlockUtils.createFileBytes(program, byteProvider, chip_data_offset, chip_length, monitor); 
 		} else {
 			chip_file_bytes = null;
 		}
@@ -133,7 +142,7 @@ public class CommodoreChipHeader implements StructConverter, MemoryLoadable {
 			return headerStructure;
 		}
 		
-		headerStructure = new StructureDataType(new CategoryPath("/Commodore"), name, 0); //$NON-NLS-1$
+		headerStructure = new StructureDataType(new CategoryPath(CommodoreCartridgeLoader.DTM_PATH), HEADER_NAME, 0); //$NON-NLS-1$
 		headerStructure.add(STRING, chip_magic_str.length(), "chip_magic_str", null); //$NON-NLS-1$
 		headerStructure.add(DWORD, "chip_length", null); //$NON-NLS-1$
 		headerStructure.add(WORD, "chip_type", null); //$NON-NLS-1$
@@ -148,7 +157,7 @@ public class CommodoreChipHeader implements StructConverter, MemoryLoadable {
 		return chip_magic_str;
 	}
 
-	public long getChip_length() {
+	public int getChip_length() {
 		return chip_length;
 	}
 
@@ -164,7 +173,7 @@ public class CommodoreChipHeader implements StructConverter, MemoryLoadable {
 		return chip_load_addr;
 	}
 
-	public long getChip_image_size() {
+	public int getChip_image_size() {
 		return chip_image_size;
 	}
 	
@@ -225,6 +234,14 @@ public class CommodoreChipHeader implements StructConverter, MemoryLoadable {
 		return chip_data_offset;
 	}
 
+	public FileBytes getChip_header_bytes() {
+		return chip_header_bytes;
+	}
+
+	public int getChip_header_length() {
+		return chip_header_length;
+	}
+
 	public CommodoreCartridgeHeader getCart() {
 		return cart;
 	}
@@ -250,12 +267,16 @@ public class CommodoreChipHeader implements StructConverter, MemoryLoadable {
 		return chipBootAddress;
 	}
 	
-	public long resetAddress() {
-		return chipResetAddress;
+	public long nmiAddress() {
+		return chipNmiAddress;
 	}
 	
 	public long get_chip_source_offset() {
 		return chip_file_offset;
+	}
+	
+	public String getChip_name() {
+		return String.format("%s_%d", chipTypeName(), getChip_bank()); //$NON-NLS-1$
 	}
 
 }

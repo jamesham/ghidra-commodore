@@ -6,14 +6,15 @@ import java.util.ArrayList;
 import org.apache.commons.lang3.StringUtils;
 
 import generic.continues.GenericFactory;
+import ghidra.app.util.MemoryBlockUtils;
 import ghidra.app.util.bin.ByteProvider;
 import ghidra.app.util.bin.StructConverter;
 import ghidra.app.util.bin.format.FactoryBundledWithBinaryReader;
 import ghidra.app.util.importer.MessageLog;
+import ghidra.program.database.mem.FileBytes;
 import ghidra.program.model.data.ArrayDataType;
 import ghidra.program.model.data.CategoryPath;
 import ghidra.program.model.data.DataType;
-import ghidra.program.model.data.Structure;
 import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.listing.Program;
 import ghidra.util.exception.CancelledException;
@@ -22,7 +23,7 @@ import ghidra.util.task.TaskMonitor;
 
 public class CommodoreCartridgeHeader implements StructConverter {
 	
-	private static String name = "CommodoreCart_Hdr"; //$NON-NLS-1$
+	public static final String HEADER_NAME = "CommodoreCart_Hdr"; //$NON-NLS-1$
 	private static final String CART_MAGIC = "C64 CARTRIDGE   "; //$NON-NLS-1$
 	private static final short CART_VERSION_0100 = 0x0100;
 	
@@ -39,8 +40,6 @@ public class CommodoreCartridgeHeader implements StructConverter {
 	private byte[] cart_reserved;
 	private String cart_name;
 	
-	private Structure headerStructure;
-	
 	private CommodoreChipHeader[] chipHeaders = new CommodoreChipHeader[0];
 	
 	private FactoryBundledWithBinaryReader reader;
@@ -48,6 +47,9 @@ public class CommodoreCartridgeHeader implements StructConverter {
 	private boolean parsed;
 	private boolean parsedChips;
 	private CommodoreCartridgeHardwareType cart_hw_type;
+	private long headerOffset;
+	private FileBytes header_file_bytes;
+	private String cart_source;
 
 	public static CommodoreCartridgeHeader createCommodoreCartridgeHeader(GenericFactory factory, ByteProvider provider)
 			throws CommodoreException {
@@ -63,6 +65,8 @@ public class CommodoreCartridgeHeader implements StructConverter {
 		
 		try {
 			reader = new FactoryBundledWithBinaryReader(factory, provider, false);
+			
+			headerOffset = reader.getPointerIndex();
 			
 			byte[] magic_bytes = reader.readNextByteArray(CART_MAGIC_LEN);
 			cart_magic_str = new String(magic_bytes);
@@ -117,9 +121,13 @@ public class CommodoreCartridgeHeader implements StructConverter {
 			return;
 		}
 		
-		if (cart_game_status == 1 && cart_exrom_status == 1) {
+		if (!willMap()) {
 			log.appendMsg("WARN: GAME and EXROM lines both set to 1; Cart will not map in!");
 		}
+		
+		ByteProvider byteProvider = reader.getByteProvider();
+		cart_source = byteProvider.getName();
+		header_file_bytes = MemoryBlockUtils.createFileBytes(program, byteProvider, headerOffset, cart_header_len, monitor);
 		
 		parseChips(program, monitor, log);
 		parsed = true;
@@ -152,19 +160,17 @@ public class CommodoreCartridgeHeader implements StructConverter {
 	
 	@Override
 	public DataType toDataType() throws DuplicateNameException, IOException {
-		if (headerStructure != null) {
-			return headerStructure;
-		}
+						
+		StructureDataType headerStructure = new StructureDataType(new CategoryPath(CommodoreCartridgeLoader.DTM_PATH), HEADER_NAME, 0);
 		
-		headerStructure = new StructureDataType(new CategoryPath("/Commodore"), name, 0);
-		headerStructure.add(STRING, cart_magic_str.length(), "cart_magic_str", null); //$NON-NLS-1$
+		headerStructure.add(STRING, CART_MAGIC_LEN, "cart_magic_str", null); //$NON-NLS-1$
 		headerStructure.add(DWORD, "cart_header_len", null); //$NON-NLS-1$
 		headerStructure.add(WORD, "cart_version", null); //$NON-NLS-1$
 		headerStructure.add(WORD, "cart_hardware_type", null); //$NON-NLS-1$
 		headerStructure.add(BYTE, "cart_exrom_status", null); //$NON-NLS-1$
 		headerStructure.add(BYTE, "cart_game_status", null); //$NON-NLS-1$
 		headerStructure.add(new ArrayDataType(BYTE,CART_RESERVED_LEN,1), "cart_reserved", null); //$NON-NLS-1$
-		headerStructure.add(STRING, cart_name.length(), "cart_name", null); //$NON-NLS-1$
+		headerStructure.add(STRING, CART_NAME_LEN, "cart_name", null); //$NON-NLS-1$
 		
 		return headerStructure;
 	}
@@ -180,9 +186,21 @@ public class CommodoreCartridgeHeader implements StructConverter {
 	public String getCart_magic_str() {
 		return cart_magic_str;
 	}
+	
+	public long getCart_header_offset() {
+		return headerOffset;
+	}
 
 	public int getCart_header_len() {
 		return cart_header_len;
+	}
+	
+	public FileBytes getCart_header_filebytes() {
+		return header_file_bytes;
+	}
+	
+	public String getCart_source() {
+		return cart_source;
 	}
 
 	public short getCart_version() {
@@ -219,6 +237,10 @@ public class CommodoreCartridgeHeader implements StructConverter {
 	
 	public boolean isUltimax() {
 		return (cart_game_status == 0 && cart_exrom_status == 1);
+	}
+	
+	public boolean willMap() {
+		return !(cart_game_status == 1 && cart_exrom_status == 1);
 	}
 
 }
